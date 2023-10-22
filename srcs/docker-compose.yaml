@@ -1,0 +1,89 @@
+version: '3.9'
+
+networks:
+  InceptionNetowrk:
+    driver: bridge
+
+volumes:
+  data_word:
+    driver_opts:
+        type: none
+        o: bind
+        device: /home/med/data/wordpress
+  data_db:
+    driver_opts:
+        type: none
+        o: bind
+        device: /home/med/data/database
+  data_static:
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/med/data/static
+
+services:
+  nginx:
+    build:  ./requirement/nginx
+    container_name: nginx
+    ports:
+      - '443:443'
+    volumes:
+      - data_word:/var/www/wordpress
+      - data_static:/var/www/static
+    networks:
+      - InceptionNetowrk
+    depends_on:
+      - wordpress
+      - mariadb
+      - redis
+ 
+
+  mariadb:
+    build: ./requirement/mariadb
+    container_name: mariadb
+    restart: always
+    ports:
+      - '3307:3306'
+    volumes:
+      - data_db:/home/database
+    networks:
+      - InceptionNetowrk
+    env_file:
+      - .env
+
+  wordpress:
+    build: ./requirement/wordpress
+    container_name: wordpress
+    ports:
+      - '9000:9000'
+    volumes:
+      - data_word:/var/www/wordpress
+    env_file:
+      - .env
+    networks:
+      - InceptionNetowrk
+    environment:
+      - MYSQL_DATABASE=${DATABASE_NAME}
+      - MYSQL_USER=${USER}
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    depends_on:
+      - mariadb
+  
+  redis:
+    build: ./requirement/bonus/redis
+    container_name: redis
+    depends_on:
+      - wordpress
+    networks:
+      - InceptionNetowrk
+    ports:
+      - '6380:6379'
+
+  website:
+    build: ./requirement/bonus/website
+    container_name: website
+    networks:
+      - InceptionNetowrk
+    volumes:
+      - data_static:/var/www/static
